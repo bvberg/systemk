@@ -18,8 +18,15 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"os"
 	"path"
+	"strconv"
 
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/virtual-kubelet/systemk/internal/kubernetes"
@@ -30,12 +37,15 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	kubeinformers "k8s.io/client-go/informers"
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	kubeletconfig "k8s.io/kubelet/config/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/certificate/bootstrap"
 )
 
 // NewRootCommand creates a new top-level command.
@@ -55,6 +65,41 @@ func NewRootCommand(ctx context.Context, name string, opts *provider.Opts) *cobr
 func runRootCommand(ctx context.Context, opts *provider.Opts) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	// Print Kubernetes compatible version
+	if opts.PrintKubeletVersion {
+		fmt.Printf("Kubernetes %s\n", opts.Version)
+		return nil
+	}
+
+	if opts.ConfigPath != "" {
+		config, err := readConfig(opts.ConfigPath)
+		if err != nil {
+			return err
+		}
+		if config.HealthzPort != nil && config.HealthzBindAddress != "" {
+			mux := http.NewServeMux()
+			kubernetes.InstallHealthzHandler(mux)
+			go func() {
+				err := http.ListenAndServe(net.JoinHostPort(config.HealthzBindAddress, strconv.Itoa(int(*config.HealthzPort))), mux)
+				if err != nil {
+					log.WithError(err).Error(err, "Failed to start healthz server")
+				}
+			}()
+		}
+	}
+
+	// bootrstrap node if required
+	if !configFileExists(opts.KubeConfigPath) {
+		if configFileExists(opts.BootstrapKubeConfigPath) {
+			log.Warnf("using bootstrap-kubeconfig at %s", opts.BootstrapKubeConfigPath)
+			err := bootstrap.LoadClientCert(ctx, opts.KubeConfigPath, opts.BootstrapKubeConfigPath, "/etc/kubernetes/pki", types.NodeName(opts.NodeName))
+			if err != nil {
+				return err
+			}
+			log.Info("kubeconfig generated at %s", opts.KubeConfigPath)
+		}
+	}
 
 	// Setup a clientset.
 	restConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -202,6 +247,30 @@ func runRootCommand(ctx context.Context, opts *provider.Opts) error {
 
 	<-ctx.Done()
 	return nil
+}
+
+func configFileExists(path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func readConfig(path string) (kubeletconfig.KubeletConfiguration, error) {
+	c := kubeletconfig.KubeletConfiguration{}
+
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return c, err
+	}
+
+	err = yaml.Unmarshal(buf, &c)
+	if err != nil {
+		return c, fmt.Errorf("in file %q: %v", path, err)
+	}
+
+	return c, nil
 }
 
 func setNodeReady(n *corev1.Node) {

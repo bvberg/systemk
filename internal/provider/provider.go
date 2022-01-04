@@ -81,10 +81,12 @@ func New(ctx context.Context, config *Opts, podWatcher kubernetes.PodResourceMan
 	switch systemID {
 	case "debian", "ubuntu":
 		p.pkgManager = new(ospkg.DebianManager)
-
+		container := corev1.Container{
+			Image: "policyrcd-script-zg2",
+		}
 		// Just installed pre-requisites instead of pointing to the docs.
 		log.Infof("installing %s, to prevent installed daemons from starting", "policyrcd-script-zg2")
-		ok, err := p.pkgManager.Install("policyrcd-script-zg2", "")
+		ok, err := p.pkgManager.Install(container.Image, "")
 		if err != nil {
 			log.Warnf("failed to install %s, %s, continuing anyway", "policyrcd-script-zg2", err)
 		}
@@ -96,6 +98,11 @@ func New(ctx context.Context, config *Opts, podWatcher kubernetes.PodResourceMan
 	default:
 		log.Warnf("found unsupported package manager in %q, limiting systemk to running existing binaries", systemID)
 		p.pkgManager = new(ospkg.NoopManager)
+	}
+
+	// Follow the image extract appraoch and overwrite other approaches
+	if p.config.ExtractImage {
+		p.pkgManager = new(ospkg.ImageManager)
 	}
 
 	return p, nil

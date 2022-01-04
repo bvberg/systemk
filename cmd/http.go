@@ -19,14 +19,18 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"path"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/virtual-kubelet/systemk/internal/provider"
 	nodeapi "github.com/virtual-kubelet/virtual-kubelet/node/api"
+	certutil "k8s.io/client-go/util/cert"
+	"k8s.io/client-go/util/keyutil"
 )
 
 // AcceptedCiphers is the list of accepted TLS ciphers, with known weak ciphers elided
@@ -76,54 +80,82 @@ func setupKubeletServer(ctx context.Context, config *provider.Opts, p provider.P
 		log.
 			WithField("cert", config.ServerCertPath).
 			WithField("key", config.ServerKeyPath).
-			Error("TLS certificates are required to serve the kubelet API")
-	} else {
-		tlsCfg, err := loadTLSConfig(config.ServerCertPath, config.ServerKeyPath)
+			Warn("TLS certificates are required to serve the kubelet API - Generating Self Signed Cerificates")
+
+		defaultCertDirectory := "/etc/kubernetes/pki"
+
+		// Generate self-signed certs
+		config.ServerCertPath = path.Join(defaultCertDirectory, "kubelet.crt")
+		config.ServerKeyPath = path.Join(defaultCertDirectory, "kubelet.key")
+
+		canReadCertAndKey, err := certutil.CanReadCertAndKey(config.ServerCertPath, config.ServerKeyPath)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to load TLS required for serving the kubelet API")
+			return nil, err
 		}
-		l, err := tls.Listen("tcp", config.ListenAddress, tlsCfg)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to setup the kubelet API server")
+		if !canReadCertAndKey {
+			cert, key, err := certutil.GenerateSelfSignedCertKey(config.NodeName, nil, nil)
+			if err != nil {
+				return nil, fmt.Errorf("unable to generate self signed cert: %w", err)
+			}
+
+			if err := certutil.WriteCert(config.ServerCertPath, cert); err != nil {
+				return nil, err
+			}
+
+			if err := keyutil.WriteKey(config.ServerKeyPath, key); err != nil {
+				return nil, err
+			}
+
+			log.Infof("Using self-signed cert for kubelet API - TLSCertFile %s - TLSPrivateKeyFile %s", config.ServerCertPath, config.ServerKeyPath)
 		}
 
-		// Setup path routing.
-		r := mux.NewRouter()
-
-		// This matches the behaviour in the reference kubelet
-		r.StrictSlash(true)
-
-		// Setup routes.
-		r.HandleFunc("/pods", nodeapi.HandleRunningPods(getPodsFromKubernetes)).Methods("GET")
-		r.HandleFunc("/containerLogs/{namespace}/{pod}/{container}", p.GetContainerLogsHandler).Methods("GET")
-		r.HandleFunc(
-			"/exec/{namespace}/{pod}/{container}",
-			nodeapi.HandleContainerExec(
-				p.RunInContainer,
-				nodeapi.WithExecStreamCreationTimeout(config.StreamCreationTimeout),
-				nodeapi.WithExecStreamIdleTimeout(config.StreamIdleTimeout),
-			),
-		).Methods("POST", "GET")
-
-		// TODO(pires) uncomment this when VK imports k8s.io/kubelet v0.20+
-		//if p.GetStatsSummary != nil {
-		//	f := nodeapi.HandlePodStatsSummary(p.GetStatsSummary)
-		//	r.HandleFunc("/stats/summary", f).Methods("GET")
-		//	r.HandleFunc("/stats/summary/", f).Methods("GET")
-		//}
-
-		r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		})
-
-		// Start the server.
-		s := &http.Server{
-			Handler:   r,
-			TLSConfig: tlsCfg,
-		}
-		go serveHTTP(ctx, s, l)
-		closers = append(closers, s)
 	}
+
+	tlsCfg, err := loadTLSConfig(config.ServerCertPath, config.ServerKeyPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load TLS required for serving the kubelet API")
+	}
+	l, err := tls.Listen("tcp", config.ListenAddress, tlsCfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to setup the kubelet API server")
+	}
+
+	// Setup path routing.
+	r := mux.NewRouter()
+
+	// This matches the behaviour in the reference kubelet
+	r.StrictSlash(true)
+
+	// Setup routes.
+	r.HandleFunc("/pods", nodeapi.HandleRunningPods(getPodsFromKubernetes)).Methods("GET")
+	r.HandleFunc("/containerLogs/{namespace}/{pod}/{container}", p.GetContainerLogsHandler).Methods("GET")
+	r.HandleFunc(
+		"/exec/{namespace}/{pod}/{container}",
+		nodeapi.HandleContainerExec(
+			p.RunInContainer,
+			nodeapi.WithExecStreamCreationTimeout(config.StreamCreationTimeout),
+			nodeapi.WithExecStreamIdleTimeout(config.StreamIdleTimeout),
+		),
+	).Methods("POST", "GET")
+
+	// TODO(pires) uncomment this when VK imports k8s.io/kubelet v0.20+
+	//if p.GetStatsSummary != nil {
+	//	f := nodeapi.HandlePodStatsSummary(p.GetStatsSummary)
+	//	r.HandleFunc("/stats/summary", f).Methods("GET")
+	//	r.HandleFunc("/stats/summary/", f).Methods("GET")
+	//}
+
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+	})
+
+	// Start the server.
+	s := &http.Server{
+		Handler:   r,
+		TLSConfig: tlsCfg,
+	}
+	go serveHTTP(ctx, s, l)
+	closers = append(closers, s)
 
 	// TODO(pires) metrics are disabled until VK supports k8s.io/kubelet v0.20+
 	// This is so that we don't import k8s.io/kubernetes.

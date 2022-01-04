@@ -139,6 +139,14 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 			uf = uf.Overwrite("Service", "WorkingDirectory", c.WorkingDir)
 		}
 
+		if p.config.ExtractImage {
+			uf = uf.Overwrite("Service", "RootDirectory", ospkg.GetImageRootDirectory(c.Image, true))
+		}
+
+		if !p.config.ExtractImage {
+			uf = uf.Insert("Service", "TemporaryFileSystem", tmpfs)
+		}
+
 		uf = uf.Overwrite("Service", "ProtectSystem", "true")
 		uf = uf.Overwrite("Service", "ProtectHome", "tmpfs")
 		uf = uf.Overwrite("Service", "PrivateMounts", "true")
@@ -199,7 +207,6 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 		uf = uf.Insert(kubernetesSection, "Id", id)
 		uf = uf.Insert(kubernetesSection, "Image", c.Image) // save (cleaned) image name here, we're not tracking this in the unit's name.
 
-		uf = uf.Insert("Service", "TemporaryFileSystem", tmpfs)
 		if len(rwpaths) > 0 {
 			paths := strings.Join(rwpaths, " ")
 			uf = uf.Insert("Service", "ReadWritePaths", paths)

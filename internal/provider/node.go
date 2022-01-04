@@ -51,7 +51,8 @@ func (p *p) ConfigureNode(ctx context.Context, opts *Opts) (*v1.Node, error) {
 			},
 		},
 		Spec: v1.NodeSpec{
-			Taints: taints,
+			Taints:     taints,
+			ProviderID: opts.ProviderID,
 		},
 		Status: v1.NodeStatus{
 			Addresses:   nodeAddresses,
