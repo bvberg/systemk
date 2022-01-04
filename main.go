@@ -32,7 +32,6 @@ import (
 var (
 	buildVersion = "N/A"
 	buildTime    = "N/A"
-	k8sVersion   = "v1.19.5" // This should follow the version of k8s.io/kubernetes we are importing
 )
 
 func init() {
@@ -68,7 +67,7 @@ func main() {
 	// The Kubernetes version systemk tracks.
 	// This is important because of Kubernetes version skew policy.
 	// See https://kubernetes.io/docs/setup/release/version-skew-policy/#kubelet
-	opts.Version = k8sVersion
+	opts.Version = opts.KubernetesVersion
 	rootCmd.AddCommand(cmd.NewVersionCommand(buildVersion, buildTime))
 
 	// And fire up engines!

@@ -109,6 +109,9 @@ type Opts struct {
 	// Version carries the systemk version.
 	Version string
 
+	// KubernetesVersion carries the kubernetes version.
+	KubernetesVersion string
+
 	// ExtractImage indicates to extract container image onto filesystem
 	// instead of using `image` field to install package from repository
 	ExtractImage bool
