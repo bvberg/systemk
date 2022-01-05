@@ -196,6 +196,12 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 		// this is also for us to return the state even after the unit left the stage.
 		uf = uf.Overwrite("Service", "RemainAfterExit", "true")
 
+		// check if container should be running as privilege and mount to host
+		priv := c.SecurityContext.Privileged
+		if priv != nil && *priv {
+			uf = uf.Overwrite("Service", "MountAPIVFS", "true")
+		}
+
 		execStart := commandAndArgs(uf, c)
 		if len(execStart) > 0 {
 			uf = uf.Overwrite("Service", "ExecStart", strings.Join(execStart, " "))
