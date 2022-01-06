@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -68,6 +69,8 @@ func main() {
 	// This is important because of Kubernetes version skew policy.
 	// See https://kubernetes.io/docs/setup/release/version-skew-policy/#kubelet
 	opts.Version = opts.KubernetesVersion
+	log.Info(fmt.Sprintf("opts.Version: %s", opts.Version))
+	log.Info(fmt.Sprintf("opts.KubernetesVersion: %s", opts.KubernetesVersion))
 	rootCmd.AddCommand(cmd.NewVersionCommand(buildVersion, buildTime))
 
 	// And fire up engines!
