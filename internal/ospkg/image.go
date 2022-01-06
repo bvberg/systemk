@@ -17,7 +17,7 @@ type ImageManager struct{}
 var _ Manager = (*ImageManager)(nil)
 
 const (
-	imageBaseRootPath = "/opt/systemk/services"
+	imageBaseRootPath = "/opt/systemk/images"
 )
 
 func (p *ImageManager) Install(pkg, version string) (bool, error) {
