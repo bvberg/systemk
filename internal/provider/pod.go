@@ -160,12 +160,11 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 
 		if !p.config.ExtractImage {
 			uf = uf.Insert("Service", "TemporaryFileSystem", tmpfs)
+			uf = uf.Overwrite("Service", "PrivateMounts", "true")
+			uf = uf.Overwrite("Service", "ReadOnlyPaths", "/")
+			uf = uf.Overwrite("Service", "ProtectHome", "tmpfs")
+			uf = uf.Overwrite("Service", "ProtectSystem", "true")
 		}
-
-		uf = uf.Overwrite("Service", "PrivateMounts", "true")
-		uf = uf.Overwrite("Service", "ReadOnlyPaths", "/")
-		uf = uf.Overwrite("Service", "ProtectHome", "tmpfs")
-		uf = uf.Overwrite("Service", "ProtectSystem", "true")
 
 		uf = uf.Insert("Service", "StandardOutput", "file:/tmp/abcd-systemk.out")
 		uf = uf.Insert("Service", "StandardError", "file:/tmp/abcd-systemk.err")
