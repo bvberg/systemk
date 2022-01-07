@@ -100,6 +100,7 @@ func (p *p) volumes(pod *corev1.Pod, which Volume) (map[string]string, error) {
 
 		case v.ConfigMap != nil:
 			if which != volumeAll && which != volumeConfigMap {
+				fnlog.Errorf("ignoring configmap %s for pod %s", v.ConfigMap.Name, pod.Name)
 				continue
 			}
 			configMap, err := p.podResourceManager.ConfigMapLister().ConfigMaps(pod.Namespace).Get(v.ConfigMap.Name)
@@ -107,6 +108,7 @@ func (p *p) volumes(pod *corev1.Pod, which Volume) (map[string]string, error) {
 				return nil, fmt.Errorf("configMap %s is required by pod %s and does not exist", v.ConfigMap.Name, pod.Name)
 			}
 			if configMap == nil {
+				fnlog.Errorf("returned nil for configmap %s for pod %s", v.ConfigMap.Name, pod.Name)
 				continue
 			}
 

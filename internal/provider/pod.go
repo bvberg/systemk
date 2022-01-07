@@ -140,7 +140,10 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 		}
 
 		// check if container should be running as privileged
-		privileged := *c.SecurityContext.Privileged
+		privileged := false
+		if c.SecurityContext != nil && c.SecurityContext.Privileged != nil {
+			privileged = *c.SecurityContext.Privileged
+		}
 
 		if p.config.ExtractImage {
 			uf = uf.Overwrite("Service", "RootDirectory", ospkg.GetImageRootDirectory(c.Image, true))
