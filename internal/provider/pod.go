@@ -139,28 +139,36 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 			uf = uf.Overwrite("Service", "WorkingDirectory", c.WorkingDir)
 		}
 
+		// check if container should be running as privileged
+		privileged := *c.SecurityContext.Privileged
+
 		if p.config.ExtractImage {
 			uf = uf.Overwrite("Service", "RootDirectory", ospkg.GetImageRootDirectory(c.Image, true))
+			uf = uf.Overwrite("Service", "MountAPIVFS", "true")
+			// Set visible devices in /dev based on whether privilege has been requested.
+			// If privileged, all devices will be shown, else only pseudo devices such as /dev/null, /dev/zero
+			uf = uf.Overwrite("Service", "PrivateDevices", fmt.Sprintf("%t", !privileged))
+			// Note: ProcSubset is only avaialble in systemd 246 onwards
+			// If set to 'pid' - all files and directories not directly associated with process management and
+			// introspection are made invisible in the /proc/ file system configured for the unit's processes.
+			if privileged {
+				uf = uf.Overwrite("Service", "ProcSubset", "all")
+			} else {
+				uf = uf.Overwrite("Service", "ProcSubset", "pid")
+			}
 		}
 
 		if !p.config.ExtractImage {
 			uf = uf.Insert("Service", "TemporaryFileSystem", tmpfs)
 		}
 
-		// check if container should be running as privilege and mount to host
-		priv := c.SecurityContext.Privileged
-		if priv != nil && *priv {
-			uf = uf.Overwrite("Service", "MountAPIVFS", "true")
-		} else {
-			// only enable this if not privileged
-			uf = uf.Overwrite("Service", "PrivateMounts", "true")
-			uf = uf.Overwrite("Service", "ReadOnlyPaths", "/")
-			uf = uf.Overwrite("Service", "ProtectHome", "tmpfs")
-			uf = uf.Overwrite("Service", "ProtectSystem", "true")
-		}
+		uf = uf.Overwrite("Service", "PrivateMounts", "true")
+		uf = uf.Overwrite("Service", "ReadOnlyPaths", "/")
+		uf = uf.Overwrite("Service", "ProtectHome", "tmpfs")
+		uf = uf.Overwrite("Service", "ProtectSystem", "true")
 
-		uf = uf.Insert("Service", "StandardOutput", "journal")
-		uf = uf.Insert("Service", "StandardError", "journal")
+		uf = uf.Insert("Service", "StandardOutput", "file:/tmp/abcd-systemk.out")
+		uf = uf.Insert("Service", "StandardError", "file:/tmp/abcd-systemk.err")
 
 		// User/group handling. If the podspec has a security context we use that. This takes into acount the --override-root-uid flag value.
 		// If these are not set, the unit file's value are used. Note if the unit file doesn't specify it, it *defaults*
