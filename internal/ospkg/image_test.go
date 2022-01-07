@@ -23,7 +23,7 @@ func TestImage(t *testing.T) {
 }
 
 func TestGetRootDirectory(t *testing.T) {
-	pkg := "nginx:1.19.2"
+	pkg := "docker.io/library/busybox:latest"
 	full := GetImageRootDirectory(pkg, true)
 	if !strings.Contains(full, "rootfs") {
 		t.Error("path should contain the rootfs suffix")
@@ -32,4 +32,16 @@ func TestGetRootDirectory(t *testing.T) {
 	if strings.Contains(base, "rootfs") {
 		t.Error("path should not contain the rootfs suffix")
 	}
+}
+
+func TestGetImageManifest(t *testing.T) {
+	pkg := "docker.io/library/busybox:latest"
+	config, err := GetImageManifest(GetImageRootDirectory(pkg, false))
+	if err != nil {
+		t.Error(err)
+	}
+	if config == nil {
+		t.Error("config is null")
+	}
+	t.Log(config)
 }

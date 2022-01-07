@@ -1,8 +1,10 @@
 package ospkg
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -60,6 +62,35 @@ func (p *ImageManager) Install(pkg, version string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+type Manifest struct {
+	Config Config `json:"config"`
+}
+
+type Config struct {
+	CMD        []string `json:"Cmd"`
+	Entrypoint []string `json:"Entrypoint"`
+	Env        []string `json:"Env"`
+}
+
+func GetImageManifest(rootPath string) (*Manifest, error) {
+	data := &Manifest{}
+	configPath := fmt.Sprintf("%s/config.json", rootPath)
+	_, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
+		return nil, err
+	}
+	file, err := ioutil.ReadFile(rootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal([]byte(file), data)
+	if err != nil {
+		return nil, err
+	}
+	return data, err
 }
 
 func (p *ImageManager) Unitfile(pkg string) (string, error) {

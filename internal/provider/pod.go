@@ -219,6 +219,29 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 			uf = uf.Overwrite("Service", "ExecStart", strings.Join(execStart, " "))
 		}
 
+		if p.config.ExtractImage {
+			manifest, err := ospkg.GetImageManifest(ospkg.GetImageRootDirectory(c.Image, false))
+			if err != nil {
+				// log the error that there might not be a docker manifest attached to the image being
+				// used and advanced functionality will be disabled for this service
+				fnlog.Warnf("error getting docker config manifest from image: %s", err.Error())
+			}
+			if manifest != nil {
+				// Add environment variables from image
+				for _, v := range manifest.Config.Env {
+					uf = uf.Insert("Service", "Environment", v)
+				}
+				// add entrypoint entries
+				if len(manifest.Config.Entrypoint) > 0 {
+					uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(manifest.Config.Entrypoint, " "))
+				}
+				// add command entries
+				if len(manifest.Config.CMD) > 0 {
+					uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.CMD, " "))
+				}
+			}
+		}
+
 		id := string(pod.ObjectMeta.UID) // give multiple containers the same access? Need to test this.
 		uf = uf.Insert(kubernetesSection, "Namespace", pod.ObjectMeta.Namespace)
 		uf = uf.Insert(kubernetesSection, "ClusterName", pod.ObjectMeta.ClusterName)
