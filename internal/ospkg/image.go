@@ -81,7 +81,7 @@ func GetImageManifest(rootPath string) (*Manifest, error) {
 	if os.IsNotExist(err) {
 		return nil, err
 	}
-	file, err := ioutil.ReadFile(rootPath)
+	file, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
