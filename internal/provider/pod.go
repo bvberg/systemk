@@ -166,8 +166,8 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 			uf = uf.Overwrite("Service", "ProtectSystem", "true")
 		}
 
-		uf = uf.Insert("Service", "StandardOutput", "file:/tmp/abcd-systemk.out")
-		uf = uf.Insert("Service", "StandardError", "file:/tmp/abcd-systemk.err")
+		uf = uf.Insert("Service", "StandardOutput", "journal")
+		uf = uf.Insert("Service", "StandardError", "journal")
 
 		// User/group handling. If the podspec has a security context we use that. This takes into acount the --override-root-uid flag value.
 		// If these are not set, the unit file's value are used. Note if the unit file doesn't specify it, it *defaults*
