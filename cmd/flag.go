@@ -34,7 +34,7 @@ var log = vklogv2.New(nil)
 func InstallFlags(flags *pflag.FlagSet, c *provider.Opts) {
 	flags.StringVar(&c.KubeConfigPath, "kubeconfig", "", "cluster client configuration")
 	flags.StringVar(&c.ConfigPath, "config", "", "path to kubelet config file")
-	flags.StringVar(&c.KubernetesVersion, "kubernetes-version", "", "dynamic kubernetes version to use")
+	flags.StringVar(&c.KubernetesVersion, "kubernetes-version", "v1.19.5", "dynamic kubernetes version to use")
 	flags.StringVar(&c.KubeClusterDomain, "cluster-domain", provider.DefaultKubeClusterDomain, "cluster domain")
 	flags.StringVar(&c.NodeName, "nodename", "", "value to be set as the Node name and label node.k8s.io/hostname")
 	flags.StringVar(&c.ListenAddress, "addr", provider.DefaultListenAddr, "address to bind for serving requests from the Kubernetes API server")
