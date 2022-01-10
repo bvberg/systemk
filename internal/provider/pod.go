@@ -236,8 +236,10 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 					uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(manifest.Config.Entrypoint, " "))
 				}
 				// add command entries
-				if len(manifest.Config.CMD) > 0 {
-					uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.CMD, " "))
+				if len(c.Args) == 0 && len(c.Command) == 0 {
+					if len(manifest.Config.CMD) > 0 {
+						uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.CMD, " "))
+					}
 				}
 			}
 		}
