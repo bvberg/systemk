@@ -155,6 +155,8 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 			// If set to 'pid' - all files and directories not directly associated with process management and
 			// introspection are made invisible in the /proc/ file system configured for the unit's processes.
 			if privileged {
+				// run as root user
+				uf = uf.Overwrite("Service", "User", "root")
 				uf = uf.Overwrite("Service", "ProcSubset", "all")
 			} else {
 				uf = uf.Overwrite("Service", "ProcSubset", "pid")
