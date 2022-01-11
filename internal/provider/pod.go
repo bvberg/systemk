@@ -234,7 +234,15 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 				}
 				// add entrypoint entries
 				if len(manifest.Config.Entrypoint) > 0 {
-					uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(manifest.Config.Entrypoint, " "))
+					if len(c.Args) == 0 && len(c.Command) == 0 {
+						uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(manifest.Config.Entrypoint, " "))
+					} else {
+						aggregate := []string{}
+						aggregate = append(aggregate, manifest.Config.Entrypoint...)
+						aggregate = append(aggregate, c.Command...)
+						aggregate = append(aggregate, c.Args...)
+						uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(aggregate, " "))
+					}
 				}
 				// add command entries
 				if len(c.Args) == 0 && len(c.Command) == 0 {
