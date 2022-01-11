@@ -240,7 +240,6 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 						aggregate := []string{}
 						aggregate = append(aggregate, manifest.Config.Entrypoint...)
 						aggregate = append(aggregate, c.Command...)
-						aggregate = append(aggregate, c.Args...)
 						uf = uf.Overwrite("Service", "ExecStartPre", strings.Join(aggregate, " "))
 					}
 				}
