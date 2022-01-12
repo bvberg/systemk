@@ -235,25 +235,16 @@ func (p *p) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 				// add entrypoint entries
 				if len(manifest.Config.Entrypoint) > 0 {
 					if len(c.Args) > 0 {
-						aggregate := []string{}
-						aggregate = append(aggregate, manifest.Config.Entrypoint...)
-						aggregate = append(aggregate, c.Args...)
-						uf = uf.Overwrite("Service", "ExecStart", strings.Join(aggregate, " "))
+						uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.Entrypoint, " ")+" "+strings.Join(c.Args, " "))
 					} else if len(manifest.Config.CMD) > 0 {
-						aggregate := []string{}
-						aggregate = append(aggregate, manifest.Config.Entrypoint...)
-						aggregate = append(aggregate, manifest.Config.CMD...)
-						uf = uf.Overwrite("Service", "ExecStart", strings.Join(aggregate, " "))
+						uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.Entrypoint, " ")+" "+strings.Join(manifest.Config.CMD, " "))
 					} else {
 						uf = uf.Overwrite("Service", "ExecStart", strings.Join(manifest.Config.Entrypoint, " "))
 					}
 				}
 				if len(c.Command) > 0 {
 					if len(c.Args) > 0 {
-						aggregate := []string{}
-						aggregate = append(aggregate, c.Command...)
-						aggregate = append(aggregate, c.Args...)
-						uf = uf.Overwrite("Service", "ExecStart", strings.Join(aggregate, " "))
+						uf = uf.Overwrite("Service", "ExecStart", strings.Join(c.Command, " ")+" "+strings.Join(c.Args, " "))
 					} else {
 						uf = uf.Overwrite("Service", "ExecStart", strings.Join(c.Command, " "))
 					}
