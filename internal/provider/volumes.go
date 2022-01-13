@@ -50,8 +50,7 @@ func (p *p) volumes(pod *corev1.Pod, which Volume) (map[string]string, error) {
 				continue
 			}
 
-			dir := fmt.Sprintf("%s:%s", v.HostPath.Path, v.HostPath.Path)
-			vol[v.Name] = dir
+			vol[v.Name] = v.HostPath.Path
 
 		case v.EmptyDir != nil:
 			if which != volumeAll {
