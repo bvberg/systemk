@@ -50,8 +50,8 @@ func (p *p) volumes(pod *corev1.Pod, which Volume) (map[string]string, error) {
 				continue
 			}
 
-			// v.Path should exist and be usuable by this pod. No checks are done here.
-			vol[v.Name] = ""
+			dir := fmt.Sprintf("%s:%s", v.HostPath.Path, v.HostPath.Path)
+			vol[v.Name] = dir
 
 		case v.EmptyDir != nil:
 			if which != volumeAll {
